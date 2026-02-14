@@ -1,0 +1,73 @@
+================================================================================
+OPUS 4.6 CODE FIXES - SUMMARY OF CHANGES
+================================================================================
+
+FILES MODIFIED:
+1. code_papers_opus46.py
+2. README.md
+3. VERIFICATION_REPORT.md (new)
+
+================================================================================
+CRITICAL FIX: Model ID
+================================================================================
+
+BEFORE (Line 200):
+    model="claude-opus-4-20250514",  # Latest Opus 4.6
+
+AFTER (Line 202):
+    model="claude-opus-4-6",  # Latest Opus 4.6 (Feb 2026)
+
+WHY: The old model ID was for Opus 4.0 (legacy). The correct Opus 4.6 
+     model ID is "claude-opus-4-6" (released Feb 5, 2026).
+
+================================================================================
+DOCUMENTATION UPDATES
+================================================================================
+
+1. Updated README.md:
+   - Fixed model ID reference
+   - Updated cost estimates (~$10 per run instead of $5.77)
+   - Clarified command-line usage (python code_papers_opus46.py 1/2/3)
+   - Added release date (Feb 5, 2026)
+
+2. Updated code_papers_opus46.py header:
+   - Added usage instructions
+   - Added model release date
+   - Updated cost estimate in output message
+
+3. Created VERIFICATION_REPORT.md:
+   - Comprehensive verification results
+   - Issue analysis and fixes
+   - Expected behavior documentation
+   - Cost and runtime estimates
+
+================================================================================
+VERIFICATION CHECKLIST
+================================================================================
+
+[x] Model ID: claude-opus-4-6 (correct for Opus 4.6)
+[x] API compatibility: Verified against official Anthropic docs
+[x] Validation logic: All 9 coding variables present
+[x] Rate limiting: 45s between requests, 65s retry
+[x] Error handling: JSON parsing, API errors, PDF failures
+[x] Command-line args: Run number 1, 2, or 3
+[x] CSV output: Same 21 columns as input
+[x] Cost estimates: ~$4.88 per run (61 papers)
+[x] Runtime: ~46 minutes per run
+
+================================================================================
+READY TO RUN
+================================================================================
+
+Commands:
+  python code_papers_opus46.py 1    # Creates run1.csv
+  python code_papers_opus46.py 2    # Creates run2.csv
+  python code_papers_opus46.py 3    # Creates run3.csv
+
+Expected outcome:
+  - 61 papers coded with G1-Q1 values
+  - 10 papers with empty coding (PDFs not found/processed)
+  - Total cost: ~$14.64 for all 3 runs
+  - Total time: ~2.3 hours for all 3 runs
+
+================================================================================

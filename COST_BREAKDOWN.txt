@@ -1,0 +1,92 @@
+================================================================================
+LLM PAPER CODING EXPERIMENT - COST BREAKDOWN
+================================================================================
+
+EXPERIMENT DESIGN
+-----------------
+71 papers × 3 runs = 213 API calls per model
+5 models × 3 runs = 15 total experimental runs
+Total API calls: 1,065 (213 per model × 5 models)
+
+COST PER MODEL
+--------------
+┌─────────────────────┬──────────────────────────┬──────────┬─────────┐
+│       Model         │ Cost per Run (71 papers) │ × 3 Runs │  Total  │
+├─────────────────────┼──────────────────────────┼──────────┼─────────┤
+│ GPT-4o              │ $2.78                    │ × 3      │  $8.34  │
+├─────────────────────┼──────────────────────────┼──────────┼─────────┤
+│ GPT-5.2             │ $2.38                    │ × 3      │  $7.14  │
+├─────────────────────┼──────────────────────────┼──────────┼─────────┤
+│ Claude Sonnet 4.5   │ $3.46                    │ × 3      │ $10.38  │
+├─────────────────────┼──────────────────────────┼──────────┼─────────┤
+│ Claude Opus 4.6     │ $5.77                    │ × 3      │ $17.31  │
+├─────────────────────┼──────────────────────────┼──────────┼─────────┤
+│ Gemini 3 Pro        │ $2.22                    │ × 3      │  $6.66  │
+└─────────────────────┴──────────────────────────┴──────────┴─────────┘
+
+================================================================================
+TOTAL COST: $49.83
+================================================================================
+
+BREAKDOWN BY MODEL
+------------------
+GPT-4o:           $8.34  (16.7% of total)
+GPT-5.2:          $7.14  (14.3% of total)
+Sonnet 4.5:      $10.38  (20.8% of total)
+Opus 4.6:        $17.31  (34.7% of total)
+Gemini 3 Pro:     $6.66  (13.4% of total)
+
+COST RANKINGS (Cheapest to Most Expensive)
+-------------------------------------------
+1. Gemini 3 Pro:      $6.66  ⭐ Most cost-effective
+2. GPT-5.2:           $7.14
+3. GPT-4o:            $8.34
+4. Sonnet 4.5:       $10.38
+5. Opus 4.6:         $17.31  💎 Most expensive (premium model)
+
+PRICING DETAILS (per 1M tokens)
+--------------------------------
+GPT-4o:           $2.50 input / $10.00 output
+GPT-5.2:          $1.75 input / $14.00 output
+Sonnet 4.5:       $3.00 input / $15.00 output
+Opus 4.6:         $5.00 input / $25.00 output
+Gemini 3 Pro:     $2.00 input / $12.00 output
+
+NOTES
+-----
+- All costs are estimates based on 2026 API pricing
+- Assumes ~15 pages per PDF, ~50K chars max per paper
+- Temperature set to 0.0 for all models (consistency)
+- No batch API discounts applied (real-time processing)
+- Actual costs may vary ±10% due to:
+  * PDF text extraction variations
+  * Token counting differences
+  * API pricing updates
+
+BUDGET RECOMMENDATIONS
+----------------------
+- Minimum viable: Run GPT-5.2 + Gemini 3 Pro only ($13.80)
+- Balanced: Run GPT-4o + Sonnet 4.5 + Gemini 3 Pro ($25.38)
+- Comprehensive: Run all 5 models ($49.83) ✅ RECOMMENDED
+
+WHY 3 RUNS?
+-----------
+- Krippendorff's alpha requires ≥2 coders for reliability
+- 3 runs provide robust reliability estimates
+- Detects inconsistencies even at temperature=0.0
+- Cost scales linearly: 2 runs = $33.22, 4 runs = $66.44
+
+ESTIMATED RUNTIME
+-----------------
+Per model (71 papers):
+- GPT-4o:        ~3 minutes (1.5s rate limit)
+- GPT-5.2:       ~3 minutes (1.5s rate limit)
+- Sonnet 4.5:    ~2 minutes (1.0s rate limit)
+- Opus 4.6:      ~2 minutes (1.0s rate limit)
+- Gemini 3 Pro:  ~4 minutes (2.0s rate limit)
+
+Total runtime (all 5 models × 3 runs): ~45 minutes
+
+================================================================================
+Last Updated: February 11, 2026
+================================================================================

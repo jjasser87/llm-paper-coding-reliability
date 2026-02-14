@@ -1,0 +1,2 @@
+selection_reason,is_aml_paper,arxiv_id,found_in_artifacts,num_artifacts,paper_title,paper_authors,paper_pub_date,first_adoption_date,first_adoption_artifact,all_adoptions,adoption_lag_months,G1,G2,G3,G4,G5,G6,T1,T2,Q1
+2+ artifacts,YES,1312.6199,"CleverHans, TextAttack",2,Intriguing properties of neural networks,Christian Szegedy; Wojciech Zaremba; Ilya Sutskever; Joan Bruna; Dumitru Erhan...,2013-12-21,2018-01-25,CleverHans,CleverHans:2018-01-25; TextAttack:2020-08-30,49.1,,,,,,,,,
