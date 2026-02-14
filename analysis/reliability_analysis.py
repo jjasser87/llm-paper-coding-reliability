@@ -22,7 +22,7 @@ MODELS = {
     'GPT-5.2': {'runs': ['gpt52_runs/run1.csv', 'gpt52_runs/run2.csv', 'gpt52_runs/run3.csv']},
     'Gemini-3': {'runs': ['gemini3_runs/run1.csv', 'gemini3_runs/run2.csv', 'gemini3_runs/run3.csv']},
     'Sonnet-4.5': {'runs': ['sonnet45_runs/papers_coded_sonnet45.csv']},
-    'Human': {'runs': ['human/papers_coded_verified_fixed.csv']}
+    'Human': {'runs': ['human/coded_by_human.csv']}
 }
 
 
@@ -212,6 +212,113 @@ def compute_cohens_kappa_per_column(df1, df2):
     return kappas
 
 
+def bootstrap_kappa_ci(labels1, labels2, n_iterations=1000, ci=0.95):
+    """
+    Compute bootstrap confidence interval for Cohen's Kappa
+    
+    Args:
+        labels1: First rater's labels (list or array)
+        labels2: Second rater's labels (list or array)
+        n_iterations: Number of bootstrap iterations
+        ci: Confidence level (default 0.95 for 95% CI)
+    
+    Returns:
+        (lower_bound, upper_bound) tuple
+    """
+    from sklearn.utils import resample
+    
+    labels1 = np.array(labels1)
+    labels2 = np.array(labels2)
+    n = len(labels1)
+    
+    kappas = []
+    for _ in range(n_iterations):
+        indices = resample(range(n), n_samples=n, random_state=None)
+        boot_labels1 = labels1[indices]
+        boot_labels2 = labels2[indices]
+        try:
+            kappa = cohen_kappa_score(boot_labels1, boot_labels2)
+            kappas.append(kappa)
+        except:
+            # In rare cases, resampling might create degenerate cases
+            continue
+    
+    if len(kappas) == 0:
+        return (np.nan, np.nan)
+    
+    lower = np.percentile(kappas, (1 - ci) / 2 * 100)
+    upper = np.percentile(kappas, (1 + ci) / 2 * 100)
+    return (lower, upper)
+
+
+def compute_cohens_kappa_global_with_ci(df1, df2, n_iterations=1000):
+    """
+    Compute Cohen's Kappa with bootstrap CI across all coding columns merged
+    
+    Returns:
+        (kappa, ci_lower, ci_upper) tuple
+    """
+    # Merge all coding columns into one long array per dataframe
+    values1 = []
+    values2 = []
+    
+    for col in CODING_COLS:
+        values1.extend(df1[col].values)
+        values2.extend(df2[col].values)
+    
+    kappa = cohen_kappa_score(values1, values2)
+    ci_lower, ci_upper = bootstrap_kappa_ci(values1, values2, n_iterations)
+    
+    return kappa, ci_lower, ci_upper
+
+
+def compute_cohens_kappa_per_column_with_ci(df1, df2, n_iterations=1000):
+    """
+    Compute Cohen's Kappa per column with bootstrap CI
+    
+    Returns:
+        dict mapping column -> (kappa, ci_lower, ci_upper)
+    """
+    results = {}
+    for col in CODING_COLS:
+        labels1 = df1[col].values
+        labels2 = df2[col].values
+        kappa = cohen_kappa_score(labels1, labels2)
+        ci_lower, ci_upper = bootstrap_kappa_ci(labels1, labels2, n_iterations)
+        results[col] = (kappa, ci_lower, ci_upper)
+    return results
+
+
+def compute_kappa_subset(df1, df2, column, exclude_value='n/a', with_ci=True, n_iterations=1000):
+    """
+    Compute Cohen's Kappa excluding specific value (e.g., N/A) with optional CI
+    
+    Returns:
+        If with_ci=True: (kappa, ci_lower, ci_upper, n_valid)
+        If with_ci=False: (kappa, n_valid)
+    """
+    # Create mask for valid (non-excluded) values
+    mask = (df1[column] != exclude_value) & (df2[column] != exclude_value)
+    n_valid = mask.sum()
+    
+    if n_valid == 0:
+        if with_ci:
+            return (np.nan, np.nan, np.nan, 0)
+        else:
+            return (np.nan, 0)
+    
+    labels1 = df1[column][mask].values
+    labels2 = df2[column][mask].values
+    
+    kappa = cohen_kappa_score(labels1, labels2)
+    
+    if with_ci:
+        ci_lower, ci_upper = bootstrap_kappa_ci(labels1, labels2, n_iterations)
+        return (kappa, ci_lower, ci_upper, n_valid)
+    else:
+        return (kappa, n_valid)
+
+
 def main():
     print("=" * 80)
     print("INTER-RATER AND INTRA-RATER RELIABILITY ANALYSIS")
@@ -267,24 +374,34 @@ def main():
     model_names = list(MODELS.keys())
     n_models = len(model_names)
 
-    # Create agreement matrix
+    # Create agreement matrix and CI storage
     agreement_matrix = np.zeros((n_models, n_models))
+    ci_lower_matrix = np.zeros((n_models, n_models))
+    ci_upper_matrix = np.zeros((n_models, n_models))
 
-    # Fill diagonal with intra-rater scores
+    # Fill diagonal with intra-rater scores (no CI for Fleiss' kappa)
     for i, model_name in enumerate(model_names):
         agreement_matrix[i, i] = intra_rater_scores[model_name]
+        ci_lower_matrix[i, i] = np.nan
+        ci_upper_matrix[i, i] = np.nan
 
-    # Fill off-diagonal with inter-rater Cohen's Kappa
+    # Fill off-diagonal with inter-rater Cohen's Kappa + CI
+    print("Computing bootstrap confidence intervals (1000 iterations)...")
     for i, model1 in enumerate(model_names):
         for j, model2 in enumerate(model_names):
             if i < j:  # Only compute upper triangle
-                kappa = compute_cohens_kappa_global(
+                kappa, ci_lower, ci_upper = compute_cohens_kappa_global_with_ci(
                     consensus_dfs[model1],
-                    consensus_dfs[model2]
+                    consensus_dfs[model2],
+                    n_iterations=1000
                 )
                 agreement_matrix[i, j] = kappa
                 agreement_matrix[j, i] = kappa  # Symmetric
-                print(f"{model1:15s} vs {model2:15s}: Cohen's Kappa = {kappa:.4f}")
+                ci_lower_matrix[i, j] = ci_lower
+                ci_lower_matrix[j, i] = ci_lower
+                ci_upper_matrix[i, j] = ci_upper
+                ci_upper_matrix[j, i] = ci_upper
+                print(f"{model1:15s} vs {model2:15s}: κ = {kappa:.4f} [95% CI: {ci_lower:.4f}, {ci_upper:.4f}]")
 
     print()
 
@@ -312,6 +429,13 @@ def main():
     # Save to CSV
     matrix_df.to_csv('global_agreement_matrix.csv')
     print("Saved to: global_agreement_matrix.csv")
+    
+    # Save CI matrices
+    ci_lower_df = pd.DataFrame(ci_lower_matrix, index=model_names, columns=model_names)
+    ci_upper_df = pd.DataFrame(ci_upper_matrix, index=model_names, columns=model_names)
+    ci_lower_df.to_csv('global_agreement_ci_lower.csv')
+    ci_upper_df.to_csv('global_agreement_ci_upper.csv')
+    print("Saved CIs to: global_agreement_ci_lower.csv, global_agreement_ci_upper.csv")
     print()
 
     # -------------------------------------------------------------------------
@@ -338,21 +462,26 @@ def main():
                                 'Model_2': model1,
                                 'Type': 'Intra-rater',
                                 'Column': col,
-                                'Kappa': kappa
+                                'Kappa': kappa,
+                                'CI_Lower': np.nan,
+                                'CI_Upper': np.nan
                             })
                 else:
-                    # Inter-rater per column
-                    kappas = compute_cohens_kappa_per_column(
+                    # Inter-rater per column with CI
+                    kappas_with_ci = compute_cohens_kappa_per_column_with_ci(
                         consensus_dfs[model1],
-                        consensus_dfs[model2]
+                        consensus_dfs[model2],
+                        n_iterations=1000
                     )
-                    for col, kappa in kappas.items():
+                    for col, (kappa, ci_lower, ci_upper) in kappas_with_ci.items():
                         per_column_results.append({
                             'Model_1': model1,
                             'Model_2': model2,
                             'Type': 'Inter-rater',
                             'Column': col,
-                            'Kappa': kappa
+                            'Kappa': kappa,
+                            'CI_Lower': ci_lower,
+                            'CI_Upper': ci_upper
                         })
 
     per_column_df = pd.DataFrame(per_column_results)
@@ -368,6 +497,64 @@ def main():
         avg_kappa = col_data.mean()
         print(f"{col:5s}: {avg_kappa:.4f} (std: {col_data.std():.4f})")
 
+    print()
+    
+    # -------------------------------------------------------------------------
+    # 6. T1/T2 Subset Analysis (Exclude N/A)
+    # -------------------------------------------------------------------------
+    print("=" * 80)
+    print("T1/T2 SUBSET ANALYSIS (Attack Papers Only, Excluding N/A)")
+    print("=" * 80)
+    print()
+    
+    # First, report N/A prevalence
+    print("N/A Prevalence by Variable and Model:")
+    print("-" * 60)
+    for col in ['T1', 'T2', 'Q1']:
+        print(f"\n{col}:")
+        for model_name in model_names:
+            df = consensus_dfs[model_name]
+            n_na = (df[col] == 'n/a').sum()
+            pct = 100 * n_na / len(df)
+            print(f"  {model_name:15s}: {n_na:2d}/71 ({pct:5.1f}%)")
+    
+    print()
+    print("=" * 60)
+    print("Subset Kappa for T1/T2 (excluding N/A):")
+    print("=" * 60)
+    print()
+    
+    # Compute subset kappa for T1 and T2
+    subset_results = []
+    for i, model1 in enumerate(model_names):
+        for j, model2 in enumerate(model_names):
+            if i < j:  # Only upper triangle
+                for col in ['T1', 'T2']:
+                    kappa, ci_lower, ci_upper, n_valid = compute_kappa_subset(
+                        consensus_dfs[model1],
+                        consensus_dfs[model2],
+                        col,
+                        exclude_value='n/a',
+                        with_ci=True,
+                        n_iterations=1000
+                    )
+                    subset_results.append({
+                        'Model_1': model1,
+                        'Model_2': model2,
+                        'Column': col,
+                        'Kappa_Subset': kappa,
+                        'CI_Lower': ci_lower,
+                        'CI_Upper': ci_upper,
+                        'N_Valid': n_valid
+                    })
+                    print(f"{model1:15s} vs {model2:15s} [{col}]: κ = {kappa:.4f} [95% CI: {ci_lower:.4f}, {ci_upper:.4f}] (n={n_valid})")
+    
+    # Save subset results
+    subset_df = pd.DataFrame(subset_results)
+    subset_df.to_csv('t1_t2_subset_analysis.csv', index=False)
+    print()
+    print("Saved to: t1_t2_subset_analysis.csv")
+    
     print()
     print("=" * 80)
     print("ANALYSIS COMPLETE")
