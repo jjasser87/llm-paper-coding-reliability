@@ -21,7 +21,7 @@ MODELS = {
     'GPT-4o': {'runs': ['gpt4o_runs/run1.csv', 'gpt4o_runs/run2.csv', 'gpt4o_runs/run3.csv']},
     'GPT-5.2': {'runs': ['gpt52_runs/run1.csv', 'gpt52_runs/run2.csv', 'gpt52_runs/run3.csv']},
     'Gemini-3': {'runs': ['gemini3_runs/run1.csv', 'gemini3_runs/run2.csv', 'gemini3_runs/run3.csv']},
-    'Sonnet-4.5': {'runs': ['sonnet45_runs/papers_coded_sonnet45.csv']},
+    'Sonnet-4.5': {'runs': ['sonnet45_runs/run1.csv', 'sonnet45_runs/run2.csv', 'sonnet45_runs/run3.csv']},
     'Human': {'runs': ['human/coded_by_human.csv']}
 }
 

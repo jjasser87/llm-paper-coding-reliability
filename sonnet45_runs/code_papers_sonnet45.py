@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """
 Claude Sonnet 4.5 paper coding for inter-rater reliability.
-Model: claude-sonnet-4-5-20250929 (released Sep 29, 2025)
+Model: claude-sonnet-4-5-20250929 (Sonnet 4.5)
 Strict allowed values based on human-verified run1 data.
 Usage: python code_papers_sonnet45.py <run_number>
   where run_number is 1, 2, or 3
+
+ROBUST VERSION: Handles rate limits, retries, and checkpoint/resume.
 """
 
 import csv
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -19,6 +22,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 import anthropic
+from anthropic import RateLimitError, APIStatusError, APITimeoutError, APIConnectionError
 
 # Try to import PDF reader
 try:
@@ -31,7 +35,7 @@ except ImportError:
 # Configuration
 BASE_DIR = Path(__file__).parent.parent
 PAPERS_DIR = BASE_DIR / "papers_for_coding"
-RUN1_CSV = BASE_DIR / "run1" / "papers_coded_verified_fixed.csv"
+RUN1_CSV = BASE_DIR / "human" / "papers_for_coding_71.csv"
 
 # Get run number from command line (default: 1)
 RUN_NUMBER = int(sys.argv[1]) if len(sys.argv) > 1 else 1
@@ -45,8 +49,16 @@ OUTPUT_FILE = Path(__file__).parent / f"run{RUN_NUMBER}.csv"
 ENV_PATH = BASE_DIR / ".env"
 load_dotenv(ENV_PATH, override=True)
 
-# Initialize Anthropic client
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+# Initialize Anthropic client with built-in retry
+# SDK auto-retries 429, 500+, connection errors with exponential backoff
+client = anthropic.Anthropic(
+    api_key=os.getenv("ANTHROPIC_API_KEY"),
+    max_retries=5,  # Increase from default 2
+    timeout=120.0,  # 2 min timeout per request
+)
+
+# Checkpoint file for resume capability
+CHECKPOINT_FILE = Path(__file__).parent / f"checkpoint_run{RUN_NUMBER}.json"
 
 # Coding prompt with STRICT allowed values from human-verified run1
 CODING_PROMPT = """You are coding academic papers for adversarial machine learning research.
@@ -188,22 +200,68 @@ def find_pdf_for_paper(paper_title, arxiv_id, papers_dir):
     return None
 
 
-# Rate limits (Tier 1): 50 RPM, 30k ITPM, 8k OTPM
-# Conservative: ~25k input tokens + 2k output = 27k total per request
-# At 55 seconds/request = 1.09 req/min = ~27k tokens/min (90% of limit, safe)
-RATE_LIMIT_WAIT = 55  # seconds between requests (conservative, 90% of ITPM limit)
-RATE_LIMIT_RETRY_WAIT = 70  # seconds to wait on 429 before retry
-RATE_LIMIT_MAX_RETRIES = 5  # retry up to 5 times on 429
+# ============================================================================
+# RATE LIMIT CONFIGURATION (Tier 1: 50 RPM, 30k ITPM, 8k OTPM)
+# ============================================================================
+# Strategy: Stay well under limits to avoid 429s
+# - 50 RPM = 1.2 seconds minimum between requests
+# - 30k ITPM with ~25k tokens/paper = max 1.2 papers/min
+# - We use 65s between requests = ~0.92 req/min (safe margin)
+
+BASE_WAIT = 65  # seconds between successful requests (safe for Tier 1)
+MIN_WAIT = 30   # minimum wait (for when we have lots of headroom)
+MAX_WAIT = 300  # maximum wait (5 min) when severely rate limited
+MAX_RETRIES_PER_PAPER = 5  # max retries for a single paper before skipping
+
+
+def exponential_backoff_with_jitter(attempt, base_delay=60, max_delay=300):
+    """Calculate wait time with exponential backoff + jitter to avoid thundering herd."""
+    # Exponential: 60, 120, 240, 300, 300... (capped at max)
+    delay = min(base_delay * (2 ** attempt), max_delay)
+    # Add jitter: +/- 20% randomness
+    jitter = delay * 0.2 * (random.random() * 2 - 1)
+    return delay + jitter
+
+
+def get_retry_after(exception):
+    """Extract retry-after value from rate limit error if available."""
+    try:
+        if hasattr(exception, 'response') and exception.response:
+            retry_after = exception.response.headers.get('retry-after')
+            if retry_after:
+                return float(retry_after)
+    except (ValueError, AttributeError):
+        pass
+    return None
+
+
+def load_checkpoint():
+    """Load checkpoint to resume from where we left off."""
+    if CHECKPOINT_FILE.exists():
+        try:
+            with open(CHECKPOINT_FILE, 'r') as f:
+                data = json.load(f)
+                return set(data.get('completed_arxiv_ids', []))
+        except (json.JSONDecodeError, IOError):
+            pass
+    return set()
+
+
+def save_checkpoint(completed_ids):
+    """Save checkpoint of completed paper IDs."""
+    with open(CHECKPOINT_FILE, 'w') as f:
+        json.dump({'completed_arxiv_ids': list(completed_ids)}, f)
 
 
 def code_paper(paper_text, paper_title, arxiv_id):
-    """Call Claude Sonnet 4.5 to code a paper."""
+    """Call Claude Sonnet 4.5 to code a paper with robust error handling."""
     content = None
-    for attempt in range(RATE_LIMIT_MAX_RETRIES):
+
+    for attempt in range(MAX_RETRIES_PER_PAPER):
         try:
             message = client.messages.create(
-                model="claude-sonnet-4-5-20250929",  # Sonnet 4.5 (Sep 2025)
-                max_tokens=2000,  # Increased for longer reasoning field
+                model="claude-sonnet-4-5-20250929",  # Sonnet 4.5
+                max_tokens=1500,  # Reduced - JSON response doesn't need 2000
                 temperature=0.0,  # Zero temperature for consistency
                 system=CODING_PROMPT,
                 messages=[
@@ -213,31 +271,69 @@ def code_paper(paper_text, paper_title, arxiv_id):
                     }
                 ]
             )
-            
+
             content = message.content[0].text.strip()
-            
+
             # Remove markdown code blocks if present
             content = re.sub(r'^```json\s*', '', content)
             content = re.sub(r'\s*```$', '', content)
-            
+
             # Parse JSON
             result = json.loads(content)
-            return result
-                
+            return result, None  # Success, no error
+
         except json.JSONDecodeError as e:
-            print(f"JSON parse error: {e}")
-            print(f"Response: {content[:200] if content else ''}")
-            return None
-        except Exception as e:
-            err_str = str(e)
-            is_rate_limit = '429' in err_str or 'rate_limit' in err_str.lower()
-            if is_rate_limit and attempt < RATE_LIMIT_MAX_RETRIES - 1:
-                print(f"Rate limited, waiting {RATE_LIMIT_RETRY_WAIT}s then retry ({attempt+1}/{RATE_LIMIT_MAX_RETRIES})...")
-                time.sleep(RATE_LIMIT_RETRY_WAIT)
+            print(f"\n  JSON parse error: {e}")
+            print(f"  Response preview: {content[:200] if content else 'None'}...")
+            return None, f"JSON parse error: {e}"
+
+        except RateLimitError as e:
+            # SDK already retried 5 times with backoff, this is persistent rate limiting
+            retry_after = get_retry_after(e)
+            if retry_after:
+                wait_time = retry_after + random.uniform(5, 15)  # Add jitter
+                print(f"\n  Rate limited (retry-after={retry_after:.0f}s). Waiting {wait_time:.0f}s...")
+            else:
+                wait_time = exponential_backoff_with_jitter(attempt)
+                print(f"\n  Rate limited (attempt {attempt+1}/{MAX_RETRIES_PER_PAPER}). Waiting {wait_time:.0f}s...")
+
+            if attempt < MAX_RETRIES_PER_PAPER - 1:
+                time.sleep(wait_time)
                 continue
-            print(f"API error: {e}")
-            return None
-    return None
+            return None, f"Rate limit exceeded after {MAX_RETRIES_PER_PAPER} retries"
+
+        except APITimeoutError as e:
+            wait_time = exponential_backoff_with_jitter(attempt, base_delay=30)
+            print(f"\n  Timeout (attempt {attempt+1}/{MAX_RETRIES_PER_PAPER}). Waiting {wait_time:.0f}s...")
+            if attempt < MAX_RETRIES_PER_PAPER - 1:
+                time.sleep(wait_time)
+                continue
+            return None, f"Timeout after {MAX_RETRIES_PER_PAPER} retries"
+
+        except APIConnectionError as e:
+            wait_time = exponential_backoff_with_jitter(attempt, base_delay=30)
+            print(f"\n  Connection error (attempt {attempt+1}/{MAX_RETRIES_PER_PAPER}). Waiting {wait_time:.0f}s...")
+            if attempt < MAX_RETRIES_PER_PAPER - 1:
+                time.sleep(wait_time)
+                continue
+            return None, f"Connection error after {MAX_RETRIES_PER_PAPER} retries"
+
+        except APIStatusError as e:
+            # 500, 502, 503, 529 (overloaded), etc.
+            if e.status_code >= 500 or e.status_code == 529:
+                wait_time = exponential_backoff_with_jitter(attempt, base_delay=60)
+                print(f"\n  Server error {e.status_code} (attempt {attempt+1}/{MAX_RETRIES_PER_PAPER}). Waiting {wait_time:.0f}s...")
+                if attempt < MAX_RETRIES_PER_PAPER - 1:
+                    time.sleep(wait_time)
+                    continue
+            return None, f"API error {e.status_code}: {e.message}"
+
+        except Exception as e:
+            # Unexpected error - don't retry
+            print(f"\n  Unexpected error: {type(e).__name__}: {e}")
+            return None, f"Unexpected error: {e}"
+
+    return None, "Max retries exceeded"
 
 
 def validate_coding(result):
@@ -267,84 +363,112 @@ def main():
     print("=" * 70)
     print(f"CLAUDE SONNET 4.5 PAPER CODING - RUN {RUN_NUMBER}/3")
     print("=" * 70)
-    
+
     # Check API key
     if not os.getenv("ANTHROPIC_API_KEY"):
         print("ERROR: ANTHROPIC_API_KEY not found in .env")
         sys.exit(1)
-    
-    # Load papers from run1 (same papers)
+
+    # Load paper list (71 papers, same corpus as human coding)
     papers = []
     with open(RUN1_CSV, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
         for row in reader:
             papers.append(row)
-    
-    print(f"Loaded {len(papers)} papers from run1")
+
+    print(f"Loaded {len(papers)} papers from {RUN1_CSV.name}")
     print(f"PDFs directory: {PAPERS_DIR}")
     print(f"Output: {OUTPUT_FILE}")
+
+    # Load checkpoint for resume capability
+    completed_ids = load_checkpoint()
+    if completed_ids:
+        print(f"Resuming: {len(completed_ids)} papers already completed")
     print()
 
-    # Create output file with header immediately (for real-time updates)
+    # Create/load output file
     OUTPUT_FILE.parent.mkdir(exist_ok=True)
-    with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
-        writer.writeheader()
+
+    # If resuming, load existing results; otherwise start fresh
+    coded_papers = []
+    if completed_ids and OUTPUT_FILE.exists():
+        with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                coded_papers.append(row)
+        print(f"Loaded {len(coded_papers)} existing results from output file")
+    else:
+        # Start fresh - write header
+        with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
+            writer.writeheader()
 
     # Process each paper
-    coded_papers = []
     errors = []
     validation_errors = []
-    
+    papers_processed_this_session = 0
+
     for i, paper in enumerate(papers):
         arxiv_id = paper['arxiv_id']
         title = paper['paper_title']
-        
+
+        # Skip if already completed (checkpoint resume)
+        if arxiv_id in completed_ids:
+            continue
+
+        papers_processed_this_session += 1
+        remaining = len(papers) - len(completed_ids) - papers_processed_this_session + 1
+        eta_minutes = remaining * BASE_WAIT / 60
+
         print(f"[{i+1}/{len(papers)}] {arxiv_id}: {title[:40]}...", end=" ", flush=True)
-        
+        print(f"(~{eta_minutes:.0f}m remaining)", end=" ", flush=True)
+
         # Find PDF
         pdf_path = find_pdf_for_paper(title, arxiv_id, PAPERS_DIR)
-        
+
         if not pdf_path:
             print("PDF NOT FOUND")
-            errors.append(arxiv_id)
-            # Keep existing values from run1 (blank G1-Q1)
+            errors.append((arxiv_id, "PDF not found"))
             for col in ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'T1', 'T2', 'Q1']:
                 paper[col] = ''
             coded_papers.append(paper)
+            completed_ids.add(arxiv_id)
+            save_checkpoint(completed_ids)
             continue
-        
+
         # Extract text
         text = extract_pdf_text(pdf_path)
         if not text:
             print("TEXT EXTRACTION FAILED")
-            errors.append(arxiv_id)
+            errors.append((arxiv_id, "Text extraction failed"))
             for col in ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'T1', 'T2', 'Q1']:
                 paper[col] = ''
             coded_papers.append(paper)
+            completed_ids.add(arxiv_id)
+            save_checkpoint(completed_ids)
             continue
-        
-        # Code paper
-        result = code_paper(text, title, arxiv_id)
-        
+
+        # Code paper with robust error handling
+        result, error = code_paper(text, title, arxiv_id)
+
         if result:
             # Validate coding
             val_errors = validate_coding(result)
             if val_errors:
-                print(f"VALIDATION ERROR: {'; '.join(val_errors)}")
+                print(f"VALIDATION: {'; '.join(val_errors)}")
                 validation_errors.append((arxiv_id, val_errors))
-            
+
             # Update paper with coding
             for col in ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'T1', 'T2', 'Q1']:
                 paper[col] = result.get(col, '')
             print("OK")
         else:
-            print("CODING FAILED")
-            errors.append(arxiv_id)
+            print(f"FAILED: {error}")
+            errors.append((arxiv_id, error))
             for col in ['G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'T1', 'T2', 'Q1']:
                 paper[col] = ''
-        
+
         coded_papers.append(paper)
 
         # Write to CSV immediately (real-time progress)
@@ -352,27 +476,44 @@ def main():
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
             writer.writerow(paper)
 
-        # Rate limiting - stay under 30k input tokens/min (~2 req/min)
-        time.sleep(RATE_LIMIT_WAIT)
-    
-    # Final save (redundant but ensures consistency if any writes failed)
+        # Save checkpoint
+        completed_ids.add(arxiv_id)
+        save_checkpoint(completed_ids)
+
+        # Rate limiting with jitter to avoid predictable patterns
+        wait_time = BASE_WAIT + random.uniform(-5, 10)
+        print(f"  Waiting {wait_time:.0f}s before next request...")
+        time.sleep(wait_time)
+
+    # Final save (ensures consistency)
     with open(OUTPUT_FILE, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
         writer.writeheader()
         writer.writerows(coded_papers)
-    
+
+    # Clean up checkpoint on successful completion
+    if len(completed_ids) == len(papers):
+        if CHECKPOINT_FILE.exists():
+            CHECKPOINT_FILE.unlink()
+            print("Checkpoint file removed (run complete)")
+
     print()
     print("=" * 70)
-    print(f"COMPLETE: {len(papers) - len(errors)}/{len(papers)} papers coded")
+    print(f"COMPLETE: {len(papers) - len(errors)}/{len(papers)} papers coded successfully")
     print(f"Output saved to: {OUTPUT_FILE}")
     if errors:
-        print(f"\nErrors ({len(errors)}): {', '.join(errors)}")
+        print(f"\nErrors ({len(errors)}):")
+        for arxiv_id, err in errors[:10]:
+            print(f"  {arxiv_id}: {err}")
+        if len(errors) > 10:
+            print(f"  ... and {len(errors) - 10} more")
     if validation_errors:
-        print(f"\nValidation errors ({len(validation_errors)}):")
+        print(f"\nValidation warnings ({len(validation_errors)}):")
         for arxiv_id, errs in validation_errors[:5]:
             print(f"  {arxiv_id}: {errs}")
     print("=" * 70)
-    print(f"\nEstimated cost per run: ~$6 (71 papers, Sonnet 4.5, increased text limit)")
+    print(f"\nEstimated cost per run: ~$6 (71 papers, Sonnet 4.5)")
+    print(f"Actual papers processed this session: {papers_processed_this_session}")
 
 
 if __name__ == "__main__":
