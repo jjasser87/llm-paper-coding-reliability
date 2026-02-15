@@ -31,16 +31,28 @@ for i in range(len(model_names)):
         else:
             annot_labels[i, j] = f'{annot[i, j]:.3f}'
 
-# Plot heatmap
-sns.heatmap(global_matrix,
-            annot=annot_labels,
-            fmt='',
-            cmap='RdYlGn',
-            vmin=0, vmax=1,
-            square=True,
-            linewidths=0.5,
-            cbar_kws={'label': ''},
-            ax=ax)
+# Plot heatmap without annotations first
+heatmap = sns.heatmap(global_matrix,
+                      annot=False,
+                      cmap='RdYlGn',
+                      vmin=0, vmax=1,
+                      square=True,
+                      linewidths=0.5,
+                      cbar_kws={'label': ''},
+                      ax=ax)
+
+# Manually add text annotations to ensure they all appear
+for i in range(len(model_names)):
+    for j in range(len(model_names)):
+        text = annot_labels[i, j]
+        if text:
+            # Determine text color based on background value
+            val = annot[i, j]
+            text_color = 'white' if val > 0.5 else 'black'
+            ax.text(j + 0.5, i + 0.5, text,
+                   ha='center', va='center',
+                   fontsize=11, fontweight='bold',
+                   color=text_color)
 
 ax.set_title("Inter-Rater and Intra-Rater Reliability Matrix\n(Cohen's Kappa & Fleiss' Kappa)",
              fontsize=14, fontweight='bold')
@@ -91,10 +103,9 @@ for idx, col in enumerate(coding_cols):
             else:
                 annot_labels[i, j] = f'{col_matrix[i, j]:.2f}'
 
-    # Plot
+    # Plot without annotations first
     sns.heatmap(col_matrix,
-                annot=annot_labels,
-                fmt='',
+                annot=False,
                 cmap='RdYlGn',
                 vmin=0, vmax=1,
                 square=True,
@@ -103,6 +114,19 @@ for idx, col in enumerate(coding_cols):
                 xticklabels=model_names,
                 yticklabels=model_names,
                 ax=ax)
+
+    # Manually add text annotations
+    for i in range(5):
+        for j in range(5):
+            text = annot_labels[i, j]
+            if text:
+                # Determine text color based on background value
+                val = col_matrix[i, j]
+                text_color = 'white' if val > 0.5 else 'black'
+                ax.text(j + 0.5, i + 0.5, text,
+                       ha='center', va='center',
+                       fontsize=9, fontweight='bold',
+                       color=text_color)
 
     ax.set_title(col, fontsize=14, fontweight='bold')
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=8)

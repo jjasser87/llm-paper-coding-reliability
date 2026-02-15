@@ -162,9 +162,10 @@ Table~\ref{tab:pervar} shows mean $\kappa$ across all 10 inter-rater pairs, rank
 \caption{Per-Variable Agreement (Mean $\kappa$ Across All Pairs with 95\% CI)}
 \label{tab:pervar}
 \small
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}llccc@{}}
 \toprule
-\textbf{Var} & \textbf{Description} & \textbf{Mean $\kappa$} & \textbf{95\% CI} & \textbf{Interpretation} \\
+\textbf{Var} & \textbf{Description} & \textbf{Mean $\kappa$} & \textbf{95\% CI} & \textbf{Interp.} \\
 \midrule
 G3 & Application domain & .845 & [.796, .887] & Almost perfect \\
 G5 & Code available & .776 & [.698, .851] & Substantial \\
@@ -177,7 +178,8 @@ Q1 & Real-world evaluation & .578 & [.476, .676] & Moderate \\
 G1 & Paper type & .578 & [.461, .691] & Moderate \\
 G2 & Attack category & .514 & [.390, .634] & Moderate \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \textbf{Structured variables perform best.} Application domain (G3) achieves almost perfect agreement ($\kappa = 0.85$). Threat-model access (T1), gradient requirement (T2), code availability (G5), and release timing (G6) all reach substantial agreement ($\kappa = 0.73$--$0.78$). These have well-defined categories with clear textual signals (e.g., ``white-box,'' ``black-box,'' ``vision,'' ``NLP'').
@@ -226,13 +228,11 @@ We release prompts, scripts, and raw outputs for replication.
 \bibliography{references}
 
 \appendix
+\section{Supplementary Material and Coding Prompt}
 \label{app:heatmaps}
 
 \begin{figure*}[t]
 \noindent\begin{minipage}[t]{0.48\textwidth}
-\textbf{Appendix}
-
-\medskip
 Figure~\ref{fig:percolumn} shows Cohen's $\kappa$ for each variable across all rater pairs. Diagonal entries show intra-rater reliability (Fleiss' $\kappa$). Variables G3 (domain), G5 (code available), T1 (threat model), and T2 (gradient) show consistent high agreement across most LLM pairs. Variables G1 (paper type), G2 (attack category), and Q1 (real-world evaluation) show moderate agreement, reflecting their interpretive nature.
 
 \medskip
