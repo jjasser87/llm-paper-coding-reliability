@@ -9,7 +9,7 @@
 \usepackage{listings}
 
 \lstset{
-  basicstyle=\ttfamily\tiny,
+  basicstyle=\ttfamily\scriptsize,
   breaklines=true,
   breakatwhitespace=false,
   frame=none,
@@ -87,9 +87,9 @@ Artifacts and reproducibility are still weak in security. Olszewski et al.~\cite
 
 \section{Methodology}
 
-We extract 71 adversarial ML papers from top security conferences (IEEE S\&P, CCS, USENIX Security, NDSS), ML venues (ICML, ICLR, NeurIPS), and popular artefacts (CleverHans, RobustBench). The papers are chosen based on their impact and visibility in the adversarial ML literature. An arXiv ID and title identify each paper. We extract full text from each PDF with PyMuPDF. All raters saw the papers in the same order.
+We extract 71 adversarial ML papers from top security conferences (IEEE S\&P, CCS, USENIX Security, NDSS), ML venues (ICML, ICLR, NeurIPS), and popular artefacts (CleverHans, RobustBench). The papers are chosen based on their impact and visibility in the adversarial ML literature; this artifact-based selection may overrepresent papers with clearer reporting and available code relative to a random sample. An arXiv ID and title identify each paper. We extract full text from each PDF with PyMuPDF (first 15 pages, max 50,000 characters). All raters saw the papers in the same order. For code availability variables (G5/G6), this PDF-only input restriction may disadvantage LLMs relative to the human coder, who could access external resources (GitHub, project pages).
 
-Each paper was coded on 9 categorical variables grouped into three themes: research characteristics (G1--G6), threat protection properties specific to attack papers (T1--T2) and practical evaluation (Q1). These coding variables are standard and are commonly seen in the literature in adversarial ML reviews like~\cite{arp2022dos,apruzzese2023real}; our framework was inspired in particular by~\cite{apruzzese2023real}. Table~\ref{tab:codebook} includes the complete variable list and allowed values.
+Each paper was coded on 9 categorical variables grouped into three themes: research characteristics (G1--G6), threat protection properties specific to attack papers (T1--T2) and practical evaluation (Q1). These coding variables are standard and are commonly seen in the literature in adversarial ML reviews like~\cite{arp2022dos,apruzzese2023real}; our framework was inspired in particular by~\cite{apruzzese2023real}. Table~\ref{tab:codebook} includes the complete variable list and allowed values. Some categories intentionally overlap (e.g., ``Attack/Defense'') to capture papers spanning multiple contributions, reflecting real-world ambiguity in the literature.
 
 \begin{table*}[t]
 \centering
@@ -188,6 +188,8 @@ G2 & Attack category & .514 & [.390, .634] & Moderate \\
 
 The best pairs per variable reach substantial to almost perfect agreement: G3 (domain) achieves $\kappa = 0.87$ (GPT-5.2 $\leftrightarrow$ Sonnet-4.5), T2 (gradient) reaches $\kappa = 0.90$ (GPT-5.2 $\leftrightarrow$ Gemini-3), and G5 (code available) hits $\kappa = 0.89$ (GPT-5.2 $\leftrightarrow$ Gemini-3). Even G2 (attack category) achieves $\kappa = 0.77$ between GPT-5.2 and Sonnet-4.5.
 
+\textbf{Threat-model variable caveat.} While threat-model variables (T1/T2) appear to reach substantial agreement in Table~\ref{tab:pervar}, subset $\kappa$ excluding N/A reveals much lower LLM--human agreement ($\kappa = 0.18$--$0.33$). LLMs marked 56--68\% of papers as N/A for T1/T2, while the human marked only 41--45\%, indicating these variables are less reliable than global metrics suggest and benefit from N/A-driven prevalence inflation (see Limitations).
+
 \section{Discussion}
 
 Our results suggest that LLMs are viable for first-pass coding of structured metadata in security meta-research. For variables such as application domain ($\kappa = 0.85$), code availability ($\kappa = 0.78$), and threat model ($\kappa = 0.75$), agreement exceeds inter-human reliability reported in other domains~\cite{ziems2024can}. A practical workflow could employ LLMs to pre-code all papers, with human experts reviewing only disagreements or low-confidence cases.
@@ -200,11 +202,11 @@ These findings carry broader implications for adversarial ML meta-research. Our 
 
 \section{Limitations}
 
-\textbf{Statistical methodology.} We report a global $\kappa$ by concatenating all nine variables, which mixes heterogeneous label spaces and prevalences. Per-variable $\kappa$ (Table~\ref{tab:pervar}) provides more granular reliability estimates and should be preferred for interpretation. For T1/T2 (threat model variables), we report subset $\kappa$ excluding N/A to avoid prevalence inflation: LLMs marked 56--68\% of papers as N/A for T1/T2, while the human marked 41--45\%. Critically, T2 (gradient required) shows very low LLM--human agreement ($\kappa = 0.18$--0.33) when N/A is excluded, despite appearing ``substantial'' in the global analysis. This highlights the risk of N/A-driven inflation in threat-model coding.
+\textbf{Statistical methodology.} We report a global $\kappa$ by concatenating all nine variables, which mixes heterogeneous label spaces and prevalences. Per-variable $\kappa$ (Table~\ref{tab:pervar}) provides more granular reliability estimates and should be preferred for interpretation. For T1/T2 (threat model variables), we report subset $\kappa$ excluding N/A to avoid prevalence inflation: LLMs marked 56--68\% of papers as N/A for T1/T2, while the human marked 41--45\%. Critically, T2 (gradient required) shows very low LLM--human agreement ($\kappa = 0.18$--0.33) when N/A is excluded, despite appearing ``substantial'' in the global analysis. This highlights the risk of N/A-driven inflation in threat-model coding. Alternative coefficients less sensitive to prevalence (e.g., Gwet's AC1, PABAK) may provide complementary evidence, especially for variables with high N/A rates.
 
-\textbf{Single human coder.} We use one expert coder due to resource constraints. A single human coder may have bias that could be mitigated by multiple raters with adjudication. Prior work suggests human--human $\kappa$ for similar tasks is 0.6--0.8~\cite{krippendorff2004reliability}; our LLM--human $\kappa = 0.64$--0.71$ is within this range, but validation with multiple humans is needed.
+\textbf{Single human coder.} We use one expert coder due to resource constraints. A single human coder may have bias that could be mitigated by multiple raters with adjudication. Prior work suggests human--human $\kappa$ for similar tasks is 0.6--0.8~\cite{krippendorff2004reliability}; our LLM--human $\kappa = 0.64{-}0.71$ is within this range, but validation with multiple humans is needed.
 
-\textbf{Robustness.} High intra-rater $\kappa$ at temperature=0 reflects deterministic sampling, not robustness to prompt variations or context changes. We did not test sensitivity to prompt paraphrasing, few-shot examples, or alternative codebook formulations~\cite{sclar2023quantifying}. Configuration sensitivity (``LLM hacking'') can flip downstream conclusions even with small prompt changes, requiring pre-registration and sensitivity reporting for production meta-research.
+\textbf{Robustness.} High intra-rater $\kappa$ at temperature=0 reflects deterministic sampling, not robustness; repeated identical runs are not independent raters and near-perfect consistency is trivial. Robustness should be assessed via prompt variations, temperature settings, and few-shot examples~\cite{sclar2023quantifying}. Configuration sensitivity (``LLM hacking'') can flip downstream conclusions even with small prompt changes, requiring pre-registration and sensitivity reporting for production meta-research. Additionally, LLMs may have encountered target papers during training; reliability may partly reflect memorization rather than robust extraction from provided text.
 
 \textbf{Codebook ambiguities.} Some categories overlap (e.g., G1 ``Both'' vs ``Attack/Defense''; G2 includes ``Defense'' as an attack category; G3 ``Cross'' vs ``Cross-domain''), contributing to moderate $\kappa$ on interpretive variables. Future work should refine category boundaries and test whether disambiguation improves reliability.
 
@@ -232,7 +234,8 @@ We release prompts, scripts, and raw outputs for replication.
 \label{app:heatmaps}
 
 \begin{figure*}[t]
-\noindent\begin{minipage}[t]{0.48\textwidth}
+\noindent\begin{minipage}[t]{0.47\textwidth}
+\vspace{0pt}
 Figure~\ref{fig:percolumn} shows Cohen's $\kappa$ for each variable across all rater pairs. Diagonal entries show intra-rater reliability (Fleiss' $\kappa$). Variables G3 (domain), G5 (code available), T1 (threat model), and T2 (gradient) show consistent high agreement across most LLM pairs. Variables G1 (paper type), G2 (attack category), and Q1 (real-world evaluation) show moderate agreement, reflecting their interpretive nature.
 
 \medskip
@@ -245,7 +248,8 @@ Our corpus comprises 71 adversarial ML papers selected based on adoption in majo
 All supplementary materials are available at our GitHub repository: \url{https://github.com/actionproject-madhav/llm-paper-coding-reliability}, including raw CSV outputs from each model run (3 runs per LLM), human expert codings, the complete paper list with arXiv IDs and PDF links, analysis scripts for computing $\kappa$ statistics, and API interaction code for each model.
 \end{minipage}%
 \hfill
-\begin{minipage}[t]{0.50\textwidth}
+\begin{minipage}[t]{0.51\textwidth}
+\vspace{0pt}
 \textbf{Coding Prompt}
 \begin{lstlisting}
 You are coding academic papers for adversarial ML research. For each paper, assign values to exactly 9 variables. Use ONLY the allowed values listed below.
@@ -295,9 +299,9 @@ CRITICAL: Use ONLY the allowed values. Do NOT create new values.
 \end{minipage}
 \end{figure*}
 
-\begin{figure*}[b]
+\begin{figure*}[tb]
 \centering
-\includegraphics[width=0.82\textwidth]{per_column_heatmaps.png}
+\includegraphics[width=0.88\textwidth]{per_column_heatmaps.png}
 \caption{Per-variable agreement heatmaps showing pairwise $\kappa$ for each coding variable (G1--G6: research characteristics; T1--T2: threat model; Q1: evaluation). Diagonal entries show intra-rater Fleiss' $\kappa$. Color scale ranges from red (poor) to green (excellent).}
 \label{fig:percolumn}
 \end{figure*}
