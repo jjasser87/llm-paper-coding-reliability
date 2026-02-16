@@ -28,7 +28,7 @@
 \maketitle
 
 \begin{abstract}
-Meta-research on security and machine learning often needs systematic coding of large paper corpora, a task that has stayed manual and slow. Large language models (LLMs) may help automate annotation, but their reliability for coding academic security papers is unknown. We evaluate LLM reliability for coding adversarial ML research by comparing four models (GPT-4o, GPT-5.2, Gemini-3, Claude Sonnet-4.5) to human expert coding on 71 papers and 9 categorical variables. All tested models reach nearly perfect intra-rater consistency (Fleiss' $\kappa = 0.97$--$1.00$), high inter-LLM agreement ($\kappa = 0.79$--$0.85$), and substantial agreement with the human coder ($\kappa = 0.64$--$0.71$). Reliability varies by category: structured variables like domain reach almost perfect agreement ($\kappa = 0.85$), while interpretive ones like attack category are moderate ($\kappa = 0.51$). LLMs are usable as screening tools for structured meta-research in security, though interpretive judgment still benefits from human review.
+Meta-research on security and machine learning often requires systematic coding of large paper corpora, a task that has remained manual and slow. Large language models (LLMs) may help automate annotation, but their reliability for coding academic security papers is unknown. We evaluate LLM reliability for coding adversarial ML research by comparing four models (GPT-4o, GPT-5.2, Gemini-3, Claude Sonnet-4.5) to human expert coding on 71 papers and 9 categorical variables. All tested models reach nearly perfect intra-rater consistency (Fleiss' $\kappa = 0.97$--$1.00$), high inter-LLM agreement ($\kappa = 0.79$--$0.85$), and substantial agreement with the human coder ($\kappa = 0.64$--$0.71$). Reliability varies by category: structured variables like domain reach almost perfect agreement ($\kappa = 0.86$), while interpretive ones like attack category are moderate ($\kappa = 0.55$). LLMs are usable as screening tools for structured meta-research in security, though interpretive judgment still benefits from human review.
 \end{abstract}
 
 \section{Introduction}
@@ -43,47 +43,17 @@ Adversarial ML is a good testbed: the field has known evaluation issues~\cite{ca
 
 We use four LLMs (GPT-4o, GPT-5.2, Google Gemini-3, Claude Sonnet-4.5) on 71 adversarial ML papers and 9 categorical variables: research type, domain, venue, artifacts, threat model, and evaluation. Each LLM coded all papers 3 times; we compute Fleiss' $\kappa$ for intra-rater and Cohen's $\kappa$ for inter-rater agreement~\cite{krippendorff2004reliability,neuendorf2017content}.
 
-Results are encouraging. All four models achieve nearly perfect self-consistency ($\kappa = 0.97$--$1.00$), high inter-LLM agreement ($\kappa = 0.79$--$0.85$), and substantial agreement with the human coder ($\kappa = 0.64$--$0.71$), in the range often deemed acceptable~\cite{landis1977measurement}. By category, structured variables (e.g., domain $\kappa = 0.85$, threat model $\kappa = 0.75$) reach high agreement, while interpretive ones (e.g., attack category $\kappa = 0.51$) are moderate.
+Results are encouraging. All four models achieve nearly perfect self-consistency ($\kappa = 0.97$--$1.00$), high inter-LLM agreement ($\kappa = 0.79$--$0.85$), and substantial agreement with the human coder ($\kappa = 0.64$--$0.71$), in the range often deemed acceptable~\cite{landis1977measurement}. By category, structured variables (e.g., domain $\kappa = 0.86$, threat model $\kappa = 0.75$) reach high agreement, while interpretive ones (e.g., attack category $\kappa = 0.55$) are moderate.
 
 LLMs look useful as \emph{screening} tools for structured variables and could cut human effort on a first pass; they still fall short of expert coding on hard methodological calls. We report reliability numbers and release codebooks, prompts, and scripts for reuse.
 
 \section{Related Work}
 
-\textbf{LLM annotation frameworks.} Recent work demonstrates that LLMs can match or approach human annotator performance on text classification tasks in social science~\cite{gilardi2023chatgpt,tornberg2024chatgpt}, medical systematic reviews~\cite{gartlehner2025ai}, and content moderation~\cite{rathje2024gpt}. Gilardi et al.~\cite{gilardi2023chatgpt} find GPT-3.5 achieves human-level agreement ($\kappa \approx 0.7$) on tweet classification, with GPT-4 outperforming crowd workers. Ziems et al.~\cite{ziems2024can} systematically compare LLMs to human annotators across 27 datasets, finding that LLMs excel on structured tasks but struggle with subjective or culturally-grounded judgments. Our work extends this to \emph{security} papers, where domain-specific jargon, threat models, and evaluation methodology require specialized knowledge.
+Recent work demonstrates that LLMs can match or approach human annotator performance on text classification tasks in social science~\cite{gilardi2023chatgpt,tornberg2024chatgpt}, medical systematic reviews~\cite{gartlehner2025ai}, and content moderation~\cite{rathje2024gpt}. Gilardi et al.~\cite{gilardi2023chatgpt} find GPT-3.5 achieves human-level agreement ($\kappa \approx 0.7$) on tweet classification, with GPT-4 outperforming crowd workers. Ziems et al.~\cite{ziems2024can} systematically compare LLMs to human annotators across 27 datasets, finding that LLMs excel on structured tasks but struggle with subjective judgments. T\"{o}rnberg~\cite{tornberg2024chatgpt} had GPT-4 beat experts and crowd workers on political tweets, while Rathje et al.~\cite{rathje2024gpt} got human-like correlations ($r = 0.59$--$0.77$) across 15 datasets and 12 languages ($n = 47{,}925$). For systematic reviews the picture is mixed: Khraisha et al.~\cite{khraisha2024llm} got adjusted $\kappa = 0.65$ for GPT-4 on screening, while a scoping review of 37 studies~\cite{lieberum2024llm} called LLMs ``not yet ready'' as sole review tools. Gartlehner et al.~\cite{gartlehner2025ai}, on 9,341 extractions from 63 medical studies, found Claude-assisted extraction at 91\% accuracy vs.\ 89\% human-only. Known issues include model drift~\cite{chen2023chatgpt}, prompt sensitivity~\cite{sclar2023quantifying}, and extraction hallucinations. No prior work has evaluated LLM coding of \emph{security} papers, where threat models, evaluation methodology, and jargon are domain-specific.
 
-\textbf{Reliability metrics.} We use Fleiss' $\kappa$ for intra-rater reliability (multi-run models) and Cohen's $\kappa$ for inter-rater reliability, following established content analysis guidelines~\cite{krippendorff2004reliability,neuendorf2017content}. Fleiss' $\kappa$ is only valid for $\geq 3$ raters; we mark the single-run Human coder as N/A on the diagonal. We report bootstrap 95\% confidence intervals to quantify uncertainty. For threat-model variables (T1/T2), we compute subset $\kappa$ excluding N/A to avoid prevalence inflation, as recommended by Feinstein and Cicchetti~\cite{feinstein1990high}.
+Content analysis uses standard agreement metrics: Cohen's $\kappa$~\cite{cohen1960coefficient} handles two raters with chance correction, while Fleiss' $\kappa$~\cite{fleiss1971measuring} extends to multiple raters. Krippendorff's $\alpha$~\cite{krippendorff2004reliability} is flexible for any number of coders; common advice is $\alpha \geq 0.80$ for reliability~\cite{hayes2007answering}. Landis and Koch~\cite{landis1977measurement} label $\kappa = 0.61$--$0.80$ ``substantial'' and $0.81$--$1.0$ ``almost perfect.'' Neuendorf~\cite{neuendorf2017content} suggests $\kappa \geq 0.80$ for published work. We use Fleiss' $\kappa$ for intra-rater reliability and Cohen's $\kappa$ for inter-rater, reporting bootstrap 95\% confidence intervals. For threat-model variables (T1/T2), we compute subset $\kappa$ excluding N/A to avoid prevalence inflation~\cite{feinstein1990high}.
 
-\textbf{Security meta-research.} Prior work on adversarial ML evaluation~\cite{carlini2019evaluating,tramer2020adaptive} identifies common pitfalls (weak adaptive attacks, overstated robustness) through manual analysis of select papers. Broader meta-research in security has examined peer review~\cite{soneji2024reflecting}, reproducibility~\cite{olszewski2023reproducibility}, and artifact evaluation~\cite{baset2019analyzing}. These studies typically analyze tens of papers due to manual coding costs. Reliable LLM coding could enable large-scale systematic reviews (hundreds of papers) to quantify trends and identify evaluation gaps across entire subfields.
-
-\subsection{LLM Reliability for Text Annotation}
-
-LLMs have been tested heavily for annotation. Gilardi et al.~\cite{gilardi2023chatgpt} showed ChatGPT beating crowd workers by about 25 points on 6,183 relevance/stance/topic labels. T\"{o}rnberg~\cite{tornberg2024chatgpt} had GPT-4 beat experts and crowd workers on political tweets; Rathje et al.~\cite{rathje2024gpt} got human-like correlations ($r = 0.59$--$0.77$) across 15 datasets and 12 languages ($n = 47{,}925$).
-
-For systematic reviews the picture is mixed. Khraisha et al.~\cite{khraisha2024llm} got adjusted $\kappa = 0.65$ for GPT-4 on screening and extraction, with a tendency to over-exclude. A scoping review of 37 studies~\cite{lieberum2024llm} called LLMs ``not yet ready'' as sole review tools, though about half of studies saw promise for sub-tasks. Gartlehner et al.~\cite{gartlehner2025ai}, on 9,341 extractions from 63 medical studies, found Claude-assisted extraction at 91\% accuracy vs.\ 89\% human-only, with large time savings.
-
-LLM-human agreement depends on the task. In a \emph{Scientific Reports} study~\cite{nature2025comparing}, 8 LLMs and 33 humans did 22,500 annotations: LLMs reached $\alpha \approx 1.00$ on sentiment (above human-human agreement) but both struggled with sarcasm. Ziems et al.~\cite{ziems2024can} reported $\kappa = 0.40$--$0.65$ for 13 LLMs on 25 social-science benchmarks.
-
-Known issues include model drift~\cite{chen2023chatgpt}, prompt sensitivity~\cite{sclar2023quantifying}, and extraction hallucinations. No prior work has evaluated LLM coding of \emph{security} or adversarial ML papers, where technical and methodological nuance differs from general or medical text.
-
-\subsection{Coding Reliability Standards}
-
-Content analysis uses standard agreement metrics. Cohen's $\kappa$~\cite{cohen1960coefficient} handles two raters with chance correction; Fleiss' $\kappa$~\cite{fleiss1971measuring} extends to multiple raters. Krippendorff's $\alpha$~\cite{krippendorff2004reliability} is flexible (any number of coders, levels, missing data); common advice is $\alpha \geq 0.80$ for reliability, with $0.67$--$0.80$ only for tentative use~\cite{hayes2007answering}.
-
-Landis and Koch~\cite{landis1977measurement} label $\kappa = 0.61$--$0.80$ ``substantial'' and $0.81$--$1.0$ ``almost perfect'' (thresholds are conventional). Neuendorf~\cite{neuendorf2017content} suggests $\kappa \geq 0.90$ for broad acceptance and $\geq 0.80$ for published work. Lombard et al.~\cite{lombard2002content} found 31\% of content analyses reported no reliability at all, a gap that shows up often in CS.
-
-LACA~\cite{chew2023llm} outlines a 7-step process for LLM-assisted coding: codebook co-development, face validity, tests that LLM coding is not random, reliability vs.\ humans, phased replacement of manual coding, validation, and reporting. Work on ``scaling hermeneutics''~\cite{epj2025scaling} found that tuning codebooks for LLMs also helped human coders.
-
-\subsection{Meta-Research on Adversarial ML}
-
-Adversarial ML has well-known evaluation problems. Carlini and Wagner~\cite{carlini2017evaluating} showed defensive distillation gave almost no robustness despite 99.5\% claims. Athalye et al.~\cite{athalye2018obfuscated} showed 7 of 9 non-certified ICLR 2018 defenses relied on ``obfuscated gradients''; 6 were later broken. Tram\`{e}r et al.~\cite{tramer2020adaptive} broke 13 more from top venues. Zimmermann et al.~\cite{zimmermann2022increasing} proposed a ``binarization test'' and 11 of 13 defense evaluations failed.
-
-Arp et al.~\cite{arp2022dos} reviewed 30 papers over 10 years and listed 10 pitfalls (data snooping, sampling bias, spurious correlations, lab-only evaluation, etc.). Papernot et al.~\cite{papernot2018sok} described fragmented evaluation language across ML, security, and stats. Grosse et al.~\cite{grosse2023machine} showed academic threat models often mismatch industry needs.
-
-These critiques say \emph{what} is wrong but not \emph{how common} each pattern is. Large-scale coding could answer that, if LLM coding is reliable enough.
-
-\subsection{Reproducibility and Artifacts in Security}
-
-Artifacts and reproducibility are still weak in security. Olszewski et al.~\cite{olszewski2023reproducibility} looked at ~750 ML security papers from top venues (2013--2022) and found no clear gain in artifact availability after artifact-evaluation committees appeared (~2020). In a sample of 171 cybersecurity papers~\cite{dsj2024data}, 89\% had no public code and 58\% no datasets. Venues are tightening rules; USENIX Security 2025 requires artifact submission and can reject for non-compliance~\cite{usenixsec2025artifacts}. Coding when code is released (at vs.\ after publication) helps assess whether such policies work.
+Adversarial ML has well-known evaluation problems. Carlini and Wagner~\cite{carlini2017evaluating} showed defensive distillation gave almost no robustness despite 99.5\% claims. Athalye et al.~\cite{athalye2018obfuscated} showed 7 of 9 non-certified ICLR 2018 defenses relied on ``obfuscated gradients''; Tram\`{e}r et al.~\cite{tramer2020adaptive} broke 13 more from top venues. Arp et al.~\cite{arp2022dos} reviewed 30 papers over 10 years and listed 10 pitfalls (data snooping, sampling bias, lab-only evaluation). These critiques say \emph{what} is wrong but not \emph{how common} each pattern is---large-scale coding could answer that. Prior meta-research in security has examined peer review~\cite{soneji2024reflecting}, reproducibility~\cite{olszewski2023reproducibility}, and artifact evaluation~\cite{baset2019analyzing}, but typically analyzes only tens of papers due to manual coding costs. Olszewski et al.~\cite{olszewski2023reproducibility} found no clear gain in artifact availability after artifact-evaluation committees appeared (~2020) across ~750 ML security papers. Reliable LLM coding could enable systematic reviews of hundreds of papers to quantify trends across entire subfields.
 
 \section{Methodology}
 
@@ -151,11 +121,7 @@ Figure~\ref{fig:heatmap} shows the full agreement matrix. Diagonal entries repor
 \label{fig:heatmap}
 \end{figure}
 
-\textbf{Intra-rater reliability.} All four LLMs show nearly perfect self-consistency: Gemini-3 achieves $\kappa = 1.000$ (identical outputs across 3 runs), Sonnet-4.5 reaches $\kappa = 0.994$, while GPT-4o and GPT-5.2 both reach $\kappa = 0.975$. Temperature-0 sampling produces highly deterministic behavior.
-
-\textbf{Inter-rater reliability.} All four LLMs show high inter-model agreement ($\kappa = 0.79$--$0.85$), suggesting they converge on similar interpretations. The best LLM pair is GPT-5.2 $\leftrightarrow$ Gemini-3 ($\kappa = 0.846$). Sonnet-4.5 achieves excellent agreement with other LLMs ($\kappa = 0.79$--$0.81$). Critically, all LLMs achieve substantial agreement with the human coder: Gemini-3 ($\kappa = 0.707$), GPT-5.2 ($\kappa = 0.675$), GPT-4o ($\kappa = 0.654$), and Sonnet-4.5 ($\kappa = 0.643$)---all in the ``substantial'' range that Landis and Koch~\cite{landis1977measurement} consider acceptable for published work.
-
-Table~\ref{tab:pervar} shows mean $\kappa$ across all 10 inter-rater pairs, ranked by reliability. Per-variable heatmaps appear in Appendix~\ref{app:heatmaps}.
+All four LLMs show nearly perfect self-consistency (intra-rater reliability): Gemini-3 achieves $\kappa = 1.000$ (identical outputs across 3 runs), Sonnet-4.5 reaches $\kappa = 0.994$, while GPT-4o and GPT-5.2 both reach $\kappa = 0.975$. Temperature-0 sampling produces highly deterministic behavior. For inter-rater reliability, all four LLMs show high inter-model agreement ($\kappa = 0.79$--$0.85$), suggesting they converge on similar interpretations. The best LLM pair is GPT-5.2 $\leftrightarrow$ Gemini-3 ($\kappa = 0.846$), while Sonnet-4.5 achieves excellent agreement with other LLMs ($\kappa = 0.79$--$0.81$). Critically, all LLMs achieve substantial agreement with the human coder: Gemini-3 ($\kappa = 0.707$), GPT-5.2 ($\kappa = 0.675$), GPT-4o ($\kappa = 0.654$), and Sonnet-4.5 ($\kappa = 0.643$)---all in the ``substantial'' range that Landis and Koch~\cite{landis1977measurement} consider acceptable for published work. Table~\ref{tab:pervar} shows mean $\kappa$ across all 10 inter-rater pairs, ranked by reliability; per-variable heatmaps appear in Appendix~\ref{app:heatmaps}.
 
 \begin{table}[h]
 \centering
@@ -182,13 +148,9 @@ G2 & Attack category & .548 & [.418, .674] & Moderate \\
 }
 \end{table}
 
-\textbf{Structured variables perform best.} Application domain (G3) achieves almost perfect agreement ($\kappa = 0.86$). Threat-model access (T1), gradient requirement (T2), code availability (G5), and release timing (G6) all reach substantial agreement ($\kappa = 0.70$--$0.75$). These have well-defined categories with clear textual signals (e.g., ``white-box,'' ``black-box,'' ``vision,'' ``NLP'').
+Structured variables perform best: application domain (G3) achieves almost perfect agreement ($\kappa = 0.86$), while threat-model access (T1), gradient requirement (T2), code availability (G5), and release timing (G6) all reach substantial agreement ($\kappa = 0.70$--$0.75$). These have well-defined categories with clear textual signals (e.g., ``white-box,'' ``black-box,'' ``vision,'' ``NLP''). Interpretive variables are harder: publication venue (G4), real-world evaluation (Q1), paper type (G1), and attack category (G2) achieve moderate agreement ($\kappa = 0.55$--$0.61$). These require judgment---is a paper that proposes an attack and then defends against it ``Attack,'' ``Defense,'' or ``Both''? Is a poisoning attack also ``privacy'' if it extracts training data? Disagreements arise from ambiguous boundaries. The best pairs per variable reach substantial to almost perfect agreement: G3 (domain) achieves $\kappa = 0.87$ (GPT-5.2 $\leftrightarrow$ Sonnet-4.5), T2 (gradient) reaches $\kappa = 0.90$ (GPT-5.2 $\leftrightarrow$ Gemini-3), and G5 (code available) hits $\kappa = 0.89$ (GPT-5.2 $\leftrightarrow$ Gemini-3). Even G2 (attack category) achieves $\kappa = 0.79$ between GPT-5.2 and Sonnet-4.5.
 
-\textbf{Interpretive variables are harder.} Publication venue (G4), real-world evaluation (Q1), paper type (G1), and attack category (G2) achieve moderate agreement ($\kappa = 0.55$--$0.61$). These require judgment: Is a paper that proposes an attack and then defends against it ``Attack,'' ``Defense,'' or ``Both''? Is a poisoning attack also ``privacy'' if it extracts training data? Disagreements arise from ambiguous boundaries.
-
-The best pairs per variable reach substantial to almost perfect agreement: G3 (domain) achieves $\kappa = 0.87$ (GPT-5.2 $\leftrightarrow$ Sonnet-4.5), T2 (gradient) reaches $\kappa = 0.90$ (GPT-5.2 $\leftrightarrow$ Gemini-3), and G5 (code available) hits $\kappa = 0.89$ (GPT-5.2 $\leftrightarrow$ Gemini-3). Even G2 (attack category) achieves $\kappa = 0.79$ between GPT-5.2 and Sonnet-4.5.
-
-\textbf{Threat-model variable caveat.} While threat-model variables (T1/T2) appear to reach substantial agreement in Table~\ref{tab:pervar}, subset $\kappa$ excluding N/A reveals much lower LLM--human agreement ($\kappa = 0.18$--$0.33$). LLMs marked 56--70\% of papers as N/A for T1/T2, while the human marked only 41--45\%, indicating these variables are less reliable than global metrics suggest and benefit from N/A-driven prevalence inflation (see Limitations).
+One caveat concerns threat-model variables: while T1/T2 appear to reach substantial agreement in Table~\ref{tab:pervar}, subset $\kappa$ excluding N/A reveals much lower LLM--human agreement ($\kappa = 0.18$--$0.33$). LLMs marked 56--70\% of papers as N/A for T1/T2, while the human marked only 41--45\%, indicating these variables are less reliable than global metrics suggest and benefit from N/A-driven prevalence inflation (see Limitations).
 
 \section{Discussion}
 
@@ -214,33 +176,23 @@ We evaluate LLM coding of public academic papers. No human subjects; all papers 
 
 \section{LLM Usage Considerations}
 
-LLMs were both \emph{evaluated} (as coders) and \emph{used} (literature search, running experiments, analysis). We treat their coding output as data and validate it against human coding. LLMs helped with lit search, LaTeX, running experimentsand debugging. Some experiment codes are AI-generated with proper human verification.
-We release prompts, scripts, and raw outputs for replication.
+LLMs were both \emph{evaluated} (as coders) and \emph{used} (literature search, running experiments, analysis). We treat their coding output as data and validate it against human coding. LLMs helped with literature search, LaTeX formatting, running experiments, and debugging. Some experiment code is AI-generated with human verification. We release prompts, scripts, and raw outputs for replication.
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 
+\onecolumn
 \appendix
-\section{Supplementary Material and Coding Prompt}
+\section*{Appendix: Supplementary Material and Coding Prompt}
 \label{app:heatmaps}
 
-\begin{figure*}[t]
-\noindent\begin{minipage}[t]{0.47\textwidth}
-\vspace{0pt}
-Figure~\ref{fig:percolumn} shows Cohen's $\kappa$ for each variable across all rater pairs. Diagonal entries show intra-rater reliability (Fleiss' $\kappa$) for all four LLMs (each with 3 runs); the Human coder diagonal is N/A (single run). Variables G3 (domain), G5 (code available), T1 (threat model), and T2 (gradient) show consistent high agreement across most LLM pairs. Variables G1 (paper type), G2 (attack category), and Q1 (real-world evaluation) show moderate agreement, reflecting their interpretive nature.
+\noindent Figure~\ref{fig:percolumn} shows Cohen's $\kappa$ for each variable across all rater pairs. Diagonal entries show intra-rater reliability (Fleiss' $\kappa$) for all four LLMs (each with 3 runs); the Human coder diagonal is N/A (single run). Variables G3 (domain), G5 (code available), T1 (threat model), and T2 (gradient) show consistent high agreement across most LLM pairs. Variables G1 (paper type), G2 (attack category), and Q1 (real-world evaluation) show moderate agreement, reflecting their interpretive nature.
 
-\medskip
-All LLMs received identical system prompts with temperature set to 0.0 for deterministic outputs. Each paper was provided as extracted PDF text (first 15 pages, max 50,000 characters) with title and arXiv ID.
+All LLMs received identical system prompts with temperature set to 0.0 for deterministic outputs. Each paper was provided as extracted PDF text (first 15 pages, max 50,000 characters) with title and arXiv ID. Our corpus comprises 71 adversarial ML papers selected based on adoption in major security artifacts: CleverHans, IBM ART, Foolbox, AutoAttack, RobustBench, TextAttack, HarmBench, PyRIT, and MITRE ATLAS. Papers span 2013--2024 and include foundational attacks (e.g., FGSM, C\&W), robustness benchmarks, certified defenses, and recent LLM jailbreaking work.
 
-\medskip
-Our corpus comprises 71 adversarial ML papers selected based on adoption in major security artifacts: CleverHans, IBM ART, Foolbox, AutoAttack, RobustBench, TextAttack, HarmBench, PyRIT, and MITRE ATLAS. Papers span 2013--2024 and include foundational attacks (e.g., FGSM, C\&W), robustness benchmarks, certified defenses, and recent LLM jailbreaking work.
-
-\medskip
 All supplementary materials are available at our GitHub repository: \url{https://github.com/actionproject-madhav/llm-paper-coding-reliability}, including raw CSV outputs from each model run (3 runs per LLM), human expert codings, the complete paper list with arXiv IDs and PDF links, analysis scripts for computing $\kappa$ statistics, and API interaction code for each model.
-\end{minipage}%
-\hfill
-\begin{minipage}[t]{0.51\textwidth}
-\vspace{0pt}
-\textbf{Coding Prompt}
+
+\bigskip
+\noindent\textbf{Coding Prompt}
 \begin{lstlisting}
 You are coding academic papers for adversarial ML research. For each paper, assign values to exactly 9 variables. Use ONLY the allowed values listed below.
 
@@ -286,14 +238,12 @@ Return ONLY valid JSON (no markdown):
 
 CRITICAL: Use ONLY the allowed values. Do NOT create new values.
 \end{lstlisting}
-\end{minipage}
-\end{figure*}
 
-\begin{figure*}[tb]
+\begin{figure}[h]
 \centering
-\includegraphics[width=0.88\textwidth]{per_column_heatmaps.png}
+\includegraphics[width=0.95\textwidth]{per_column_heatmaps.png}
 \caption{Per-variable agreement heatmaps showing pairwise $\kappa$ for each coding variable (G1--G6: research characteristics; T1--T2: threat model; Q1: evaluation). Diagonal entries show intra-rater Fleiss' $\kappa$ for all LLMs; Human is N/A (single run). Color scale ranges from red (poor) to green (excellent).}
 \label{fig:percolumn}
-\end{figure*}
+\end{figure}
 
 \end{document}
