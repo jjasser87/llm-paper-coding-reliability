@@ -7,6 +7,7 @@
 \usepackage{xcolor}
 \usepackage{url}
 \usepackage{listings}
+\usepackage[breaklinks,hidelinks]{hyperref}
 
 \lstset{
   basicstyle=\ttfamily\scriptsize,
@@ -57,7 +58,13 @@ Adversarial ML has well-known evaluation problems. Carlini and Wagner~\cite{carl
 
 \section{Methodology}
 
-We extract 71 adversarial ML papers from top security conferences (IEEE S\&P, CCS, USENIX Security, NDSS), ML venues (ICML, ICLR, NeurIPS), and popular artefacts (CleverHans, RobustBench). The papers are chosen based on their impact and visibility in the adversarial ML literature; this artifact-based selection may overrepresent papers with clearer reporting and available code relative to a random sample. An arXiv ID and title identify each paper. We extract full text from each PDF with PyMuPDF (first 15 pages, max 50,000 characters). All raters saw the papers in the same order. For code availability variables (G5/G6), this PDF-only input restriction may disadvantage LLMs relative to the human coder, who could access external resources (GitHub, project pages).
+\subsection{Paper Selection}
+
+We selected 71 adversarial ML papers based on adoption by widely-used security artifacts as a proxy for research impact and visibility. Papers were included if they were cited, implemented, or referenced in major adversarial ML tools (CleverHans, IBM ART, Foolbox, TextAttack, PyRIT), benchmarks (RobustBench, AutoAttack, HarmBench), or industry threat frameworks (MITRE ATLAS). This artifact-adoption criterion ensures papers have demonstrable influence on practice, though it may overrepresent work with clearer reporting and available code relative to a random sample. Papers span 2013--2024 and cover foundational attacks (e.g., FGSM~\cite{goodfellow2014explaining}, C\&W~\cite{carlini2017towards}), certified defenses~\cite{cohen2019certified}, robustness benchmarks~\cite{croce2020reliable}, and recent LLM jailbreaking work~\cite{zou2023universal}. An arXiv ID and title identify each paper.
+
+\subsection{Coding and Data Extraction}
+
+We extract full text from each PDF with PyMuPDF (first 15 pages, max 50,000 characters). All raters saw the papers in the same order. For code availability variables (G5/G6), this PDF-only input restriction may disadvantage LLMs relative to the human coder, who could access external resources (GitHub, project pages).
 
 Each paper was coded on 9 categorical variables grouped into three themes: research characteristics (G1--G6), threat protection properties specific to attack papers (T1--T2) and practical evaluation (Q1). These coding variables are standard and are commonly seen in the literature in adversarial ML reviews like~\cite{arp2022dos,apruzzese2023real}; our framework was inspired in particular by~\cite{apruzzese2023real}. Table~\ref{tab:codebook} includes the complete variable list and allowed values. Some categories intentionally overlap (e.g., ``Attack/Defense'') to capture papers spanning multiple contributions, reflecting real-world ambiguity in the literature.
 
@@ -187,7 +194,7 @@ LLMs were both \emph{evaluated} (as coders) and \emph{used} (literature search, 
 
 \noindent Figure~\ref{fig:percolumn} shows Cohen's $\kappa$ for each variable across all rater pairs. Diagonal entries show intra-rater reliability (Fleiss' $\kappa$) for all four LLMs (each with 3 runs); the Human coder diagonal is N/A (single run). Variables G3 (domain), G5 (code available), T1 (threat model), and T2 (gradient) show consistent high agreement across most LLM pairs. Variables G1 (paper type), G2 (attack category), and Q1 (real-world evaluation) show moderate agreement, reflecting their interpretive nature.
 
-All LLMs received identical system prompts with temperature set to 0.0 for deterministic outputs. Each paper was provided as extracted PDF text (first 15 pages, max 50,000 characters) with title and arXiv ID. Our corpus comprises 71 adversarial ML papers selected based on adoption in major security artifacts: CleverHans, IBM ART, Foolbox, AutoAttack, RobustBench, TextAttack, HarmBench, PyRIT, and MITRE ATLAS. Papers span 2013--2024 and include foundational attacks (e.g., FGSM, C\&W), robustness benchmarks, certified defenses, and recent LLM jailbreaking work.
+All LLMs received identical system prompts with temperature set to 0.0 for deterministic outputs. Each paper was provided as extracted PDF text (first 15 pages, max 50,000 characters) with title and arXiv ID. The 71 papers were selected based on artifact-adoption criteria detailed in Section~3.1.
 
 All supplementary materials are available at our GitHub repository: \url{https://github.com/actionproject-madhav/llm-paper-coding-reliability}, including raw CSV outputs from each model run (3 runs per LLM), human expert codings, the complete paper list with arXiv IDs and PDF links, analysis scripts for computing $\kappa$ statistics, and API interaction code for each model.
 
