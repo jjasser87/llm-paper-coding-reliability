@@ -1,5 +1,11 @@
 \documentclass[conference,compsoc]{IEEEtran}
 
+\ifCLASSOPTIONcompsoc
+  \usepackage[nocompress]{cite}
+\else
+  \usepackage{cite}
+\fi
+
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath}
@@ -177,7 +183,7 @@ One of the major limitations of our work arises from resource constraints. First
 
 \section{Conclusion}
 
-We evaluated LLM reliability for coding adversarial ML papers on 9 categorical variables and found that all models achieve nearly perfect self-consistency ($\kappa = 0.97$--$1.00$) and substantial agreement with a human expert ($\kappa = 0.64$--$0.71$), with reliability varying by variable type: structured codes like domain reach almost perfect agreement ($\kappa = 0.86$), while interpretive codes like attack category are moderate ($\kappa = 0.55$--$0.61$). These results indicate that LLMs are usable as screening tools for structured meta-research in security, though they do not yet replace expert coding for nuanced methodological judgment. All supplementary materials including codebook, prompts, analysis scripts, raw CSV outputs, and per-model coding results are available at: \url{https://github.com/actionproject-madhav/llm-paper-coding-reliability}.
+We evaluated LLM reliability for coding adversarial ML papers on 9 categorical variables and found that all models achieve nearly perfect self-consistency ($\kappa = 0.97$--$1.00$) and substantial agreement with a human expert ($\kappa = 0.64$--$0.71$), with reliability varying by variable type: structured codes like domain reach almost perfect agreement ($\kappa = 0.86$), while interpretive codes like attack category are moderate ($\kappa = 0.55$--$0.61$). These results indicate that LLMs are usable as screening tools for structured meta-research in security, though they do not yet replace expert coding for nuanced methodological judgment. All supplementary materials including codebook, prompts, analysis scripts, raw CSV outputs, and per-model coding results will be made publicly available upon acceptance.
 
 \section{Ethics Considerations}
 
@@ -198,7 +204,7 @@ LLMs were both \emph{evaluated} (as coders) and \emph{used} (literature search, 
 
 All LLMs received identical system prompts with temperature set to 0.0 for deterministic outputs. Each paper was provided as extracted PDF text (first 15 pages, max 50,000 characters) with title and arXiv ID. The 71 papers were selected based on artifact-adoption criteria detailed in Section~3.1.
 
-All supplementary materials are available at our GitHub repository: \url{https://github.com/actionproject-madhav/llm-paper-coding-reliability}, including raw CSV outputs from each model run (3 runs per LLM), human expert codings, the complete paper list with arXiv IDs and PDF links, analysis scripts for computing $\kappa$ statistics, and API interaction code for each model.
+All supplementary materials will be made publicly available upon acceptance, including raw CSV outputs from each model run (3 runs per LLM), human expert codings, the complete paper list with arXiv IDs and PDF links, analysis scripts for computing $\kappa$ statistics, and API interaction code for each model.
 
 \bigskip
 \noindent\textbf{Coding Prompt}
