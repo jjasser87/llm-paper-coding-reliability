@@ -18,8 +18,9 @@ model_names = ['GPT-4o', 'GPT-5.2', 'Gemini-3', 'Sonnet-4.5', 'Human']
 # =============================================================================
 fig, ax = plt.subplots(figsize=(10, 8))
 
-# Create mask for NaN (diagonal for single-run models)
-mask = np.zeros_like(global_matrix.values, dtype=bool)
+# Hide the redundant lower triangle and any missing values
+mask = np.tril(np.ones_like(global_matrix.values, dtype=bool), k=-1)
+mask |= np.isnan(global_matrix.values)
 
 # Create annotation labels
 annot = global_matrix.values.copy()
@@ -34,6 +35,7 @@ for i in range(len(model_names)):
 # Plot heatmap without annotations first
 heatmap = sns.heatmap(global_matrix,
                       annot=False,
+                      mask=mask,
                       cmap='RdYlGn',
                       vmin=0, vmax=1,
                       square=True,
@@ -44,6 +46,8 @@ heatmap = sns.heatmap(global_matrix,
 # Manually add text annotations to ensure they all appear
 for i in range(len(model_names)):
     for j in range(len(model_names)):
+        if mask[i, j]:
+            continue
         text = annot_labels[i, j]
         if text:
             # Determine text color based on background value
@@ -103,9 +107,14 @@ for idx, col in enumerate(coding_cols):
             else:
                 annot_labels[i, j] = f'{col_matrix[i, j]:.2f}'
 
+    # Hide the redundant lower triangle and any missing values
+    mask = np.tril(np.ones_like(col_matrix, dtype=bool), k=-1)
+    mask |= np.isnan(col_matrix)
+
     # Plot without annotations first
     sns.heatmap(col_matrix,
                 annot=False,
+                mask=mask,
                 cmap='RdYlGn',
                 vmin=0, vmax=1,
                 square=True,
@@ -118,6 +127,8 @@ for idx, col in enumerate(coding_cols):
     # Manually add text annotations
     for i in range(5):
         for j in range(5):
+            if mask[i, j]:
+                continue
             text = annot_labels[i, j]
             if text:
                 # Determine text color based on background value
